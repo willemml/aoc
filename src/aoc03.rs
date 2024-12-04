@@ -1,11 +1,11 @@
 use std::io::BufRead;
 
 use nom::{
-    branch::alt, bytes::complete::tag, character::complete::{anychar, char, digit1}, combinator::map_res, error::Error, multi::fold_many1, sequence::{delimited, preceded, separated_pair}, IResult
+    branch::alt, bytes::complete::tag, character::complete::{anychar, char, digit1}, combinator::map_res, error::Error, multi::{fold_many1, many1}, sequence::{delimited, preceded, separated_pair}, IResult
 };
 
 fn fnorchar(input: &str) -> IResult<&str, i32, Error<&str>> {
-    alt((fn_parser,any_as_num))(input)
+    alt((start_stop,fn_parser,any_as_num))(input)
 }
 
 fn any_as_num(input: &str) -> IResult<&str, i32, Error<&str>> {
@@ -29,6 +29,15 @@ fn fn_parser(input: &str) -> IResult<&str, i32, Error<&str>> {
     return Ok((rem, a*b));
 }
 
+fn start_stop(input: &str) -> IResult<&str, i32, Error<&str>> {
+    let (rem, res) = alt((tag("do()"),tag("don't()")))(input)?;
+    Ok(if res == "do()" {
+        (rem, -1)
+    } else {
+        (rem, -2)
+    })
+}
+
 pub fn p1<R: BufRead>(mut reader: R) -> Result<i32, std::io::Error> {
     let mut string = String::new();
     reader.read_to_string(&mut string)?;
@@ -37,5 +46,19 @@ pub fn p1<R: BufRead>(mut reader: R) -> Result<i32, std::io::Error> {
 }
 
 pub fn p2<R: BufRead>(mut reader: R) -> Result<i32, std::io::Error> {
-    Ok(0)
+    let mut string = String::new();
+    reader.read_to_string(&mut string)?;
+    let (_,arr) = many1(fnorchar)(&string).unwrap();
+    let mut total = 0;
+    let mut ignoring = false;
+    for n in arr {
+        if n == -1 {
+            ignoring = false;
+        } else if n == -2 {
+            ignoring = true;
+        } else if !ignoring{
+            total += n;
+        }
+    }
+    Ok(total)
 }
