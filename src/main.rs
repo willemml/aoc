@@ -2,6 +2,7 @@ mod aoc01;
 mod aoc02;
 mod aoc03;
 mod aoc04;
+mod aoc05;
 
 macro_rules! run_day {
     ($aoc:ident, $day:expr, $file:expr) => {
@@ -22,5 +23,6 @@ fn main()-> Result<(), std::io::Error>{
     run_day!(aoc02, 2);
     run_day!(aoc03, 3);
     run_day!(aoc04, 4);
+    run_day!(aoc05, 5);
     Ok(())
 }
