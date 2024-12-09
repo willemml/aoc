@@ -54,6 +54,14 @@ impl Dir {
             Dir::W => Dir::N,
         }
     }
+    fn prev(&self) -> Self {
+        match self {
+            Dir::N => Dir::W,
+            Dir::E => Dir::N,
+            Dir::S => Dir::E,
+            Dir::W => Dir::S,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -147,49 +155,6 @@ fn fast_travel(map: &Vec<Vec<bool>>, pos: &mut Pos, bnd: (usize, usize)) -> (usi
     (distance, gone)
 }
 
-// return true if leaves map
-fn travel(map: &Vec<Vec<bool>>, pos: &mut Pos, bnd: (usize, usize)) -> bool {
-    match pos.d {
-        Dir::S => {
-            if pos.r == bnd.0 {
-                return true;
-            } else if map[pos.r + 1][pos.c] {
-                pos.d = Dir::W;
-            } else {
-                pos.r += 1;
-            }
-        }
-        Dir::E => {
-            if pos.c == bnd.1 {
-                return true;
-            } else if map[pos.r][pos.c + 1] {
-                pos.d = Dir::S;
-            } else {
-                pos.c += 1;
-            }
-        }
-        Dir::N => {
-            if pos.r == 0 {
-                return true;
-            } else if map[pos.r - 1][pos.c] {
-                pos.d = Dir::E;
-            } else {
-                pos.r -= 1;
-            }
-        }
-        Dir::W => {
-            if pos.c == 0 {
-                return true;
-            } else if map[pos.r][pos.c - 1] {
-                pos.d = Dir::N;
-            } else {
-                pos.c -= 1;
-            }
-        }
-    }
-    false
-}
-
 fn creates_loop(
     map: &Vec<Vec<bool>>,
     mut pos: Pos,
@@ -197,7 +162,7 @@ fn creates_loop(
     bnd: (usize, usize),
 ) -> bool {
     let mut touched = HashSet::new();
-    while pos.r < map.len() && pos.c < map[0].len() {
+    loop {
         if fast_travel(map, &mut pos, bnd).1 {
             break;
         }
@@ -216,17 +181,38 @@ pub fn p2<R: BufRead>(reader: R) -> Result<i32, std::io::Error> {
     let mut prev_pos;
     let mut touched: HashSet<Pos> = HashSet::new();
     let mut good_walls: HashSet<(usize, usize)> = HashSet::new();
+    let mut bad_walls: HashSet<(usize, usize)> = HashSet::new();
     loop {
         prev_pos = pos;
-        if travel(&map, &mut pos, bnd) {
+        let (dist, gone) = fast_travel(&map, &mut pos, bnd);
+        for i in 1..=dist {
+            let change = match prev_pos.d {
+                Dir::N => (prev_pos.r - i, prev_pos.c),
+                Dir::E => (prev_pos.r, prev_pos.c + i),
+                Dir::S => (prev_pos.r + i, prev_pos.c),
+                Dir::W => (prev_pos.r, prev_pos.c - i),
+            };
+            if bad_walls.contains(&change) {
+                continue;
+            }
+            map[change.0][change.1] = true;
+            if creates_loop(&map, prev_pos, &touched, bnd) {
+                good_walls.insert(change);
+                //println!("HIT:")
+            } else {
+                bad_walls.insert(change);
+            }
+            //print_map(&map, prev_pos);
+            map[change.0][change.1] = false;
+        }
+        touched.insert(Pos {
+            d: pos.d.prev(),
+            ..pos
+        });
+        touched.insert(pos);
+        if gone {
             break;
         }
-        map[pos.r][pos.c] = true;
-        if creates_loop(&map, prev_pos, &touched, bnd) {
-            good_walls.insert((pos.r, pos.c));
-        }
-        map[pos.r][pos.c] = false;
-        touched.insert(pos);
     }
     good_walls.remove(&(start_pos.r, start_pos.c));
     Ok(good_walls.len() as i32)
