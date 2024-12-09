@@ -8,18 +8,25 @@ use nom::{
 };
 use std::io::BufRead;
 
-fn parse_line(line: &str) -> IResult<&str, (i64, Vec<i32>), Error<&str>> {
+fn parse_line(line: &str) -> IResult<&str, (i128, Vec<i128>), Error<&str>> {
     separated_pair(
-        map_res(digit1, str::parse::<i64>),
+        map_res(digit1, str::parse::<i128>),
         char(':'),
-        many1(preceded(char(' '), map_res(digit1, str::parse::<i32>))),
+        many1(preceded(char(' '), map_res(digit1, str::parse::<i128>))),
     )(line)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Equation {
-    result: i64,
-    input: Vec<i32>,
+    result: i128,
+    input: Vec<i128>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Op {
+    Add,
+    Mul,
+    Cat,
 }
 
 impl Equation {
@@ -29,16 +36,59 @@ impl Equation {
             ops_max |= 1 << i;
         }
         for flag in 0..=ops_max {
-            let mut ans = 0i64;
+            let mut ans = 0i128;
             for (i, n) in self.input.iter().enumerate() {
                 if i == 0 {
-                    ans = *n as i64;
+                    ans = *n as i128;
                 } else if flag & (1 << (i - 1)) == 1 << (i - 1) {
-                    ans *= *n as i64;
+                    ans *= *n as i128;
                 } else {
-                    ans += *n as i64;
+                    ans += *n as i128;
                 }
             }
+            if ans == self.result {
+                return true;
+            }
+        }
+        return false;
+    }
+    fn is_valid_p2(&self) -> bool {
+        let mut ops_max = 0u64;
+        for i in 0..((self.input.len() - 1) * 2) {
+            ops_max |= 1 << i;
+        }
+
+        'outer: for flag in 0..=ops_max {
+            let mut ops = Vec::new();
+            for i in 0..(self.input.len() - 1) {
+                ops.push(match flag >> (i * 2) & 0b11 {
+                    0b00 => Op::Add,
+                    0b01 => Op::Mul,
+                    0b10 => Op::Cat,
+                    _ => {
+                        continue 'outer;
+                    }
+                });
+            }
+            let mut ans = self.input[0];
+            for (i, o) in ops.iter().enumerate() {
+                match o {
+                    Op::Add => {
+                        ans += self.input[i + 1];
+                    }
+                    Op::Mul => {
+                        ans *= self.input[i + 1];
+                    }
+                    Op::Cat => {
+                        let n = self.input[i + 1];
+                        ans = ans * 10i128.pow(n.ilog10()+1) + n;
+                    }
+                }
+                if ans > self.result {
+                    continue 'outer;
+                }
+            }
+
             if ans == self.result {
                 return true;
             }
@@ -58,8 +108,7 @@ fn read_input<R: BufRead>(mut reader: R) -> Result<Vec<Equation>, std::io::Error
     Ok(eqs)
 }
 
-// 3312272362250 is too high
-pub fn p1<R: BufRead>(reader: R) -> Result<i64, std::io::Error> {
+pub fn p1<R: BufRead>(reader: R) -> Result<i128, std::io::Error> {
     let mut total = 0;
     for eq in read_input(reader)? {
         if eq.is_valid() {
@@ -69,6 +118,12 @@ pub fn p1<R: BufRead>(reader: R) -> Result<i64, std::io::Error> {
     Ok(total)
 }
 
-pub fn p2<R: BufRead>(_reader: R) -> Result<i32, std::io::Error> {
-    Ok(0)
+pub fn p2<R: BufRead>(reader: R) -> Result<i128, std::io::Error> {
+    let mut total = 0;
+    for eq in read_input(reader)? {
+        if eq.is_valid_p2() {
+            total += eq.result;
+        }
+    }
+    Ok(total)
 }

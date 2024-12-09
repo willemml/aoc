@@ -33,6 +33,5 @@ fn main() -> Result<(), std::io::Error> {
     run_day!(aoc05, 5);
     run_day!(aoc06, 6);
     run_day!(aoc07, 7);
-    run_day!(aoc07, 7,"test");
     Ok(())
 }
